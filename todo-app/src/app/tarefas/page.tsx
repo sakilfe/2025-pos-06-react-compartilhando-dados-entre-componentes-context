@@ -1,53 +1,58 @@
 "use client";
 
-import type React from "react";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import axios from "axios";
-import dados, { TarefaInterface } from "@/data";
 import Cabecalho from "@/componentes/Cabecalho";
 import ModalTarefa from "@/componentes/ModalTarefa";
+import { TarefasContext } from "@/data/ContextTarefa";
+import type { TarefaInterface } from "@/data";
 
 interface TarefaProps {
 	titulo: string;
-	concluido?: boolean;
+	id: number;
+	concluido: boolean;
 }
 
-const Tarefa: React.FC<TarefaProps> = ({ titulo, concluido }) => {
-	const [estaConcluido, setEstaConcluido] = useState(concluido);
+const Tarefa: React.FC<TarefaProps> = ({ titulo, concluido, id }) => {
+	const contexto = useContext(TarefasContext);
+	if (!contexto) return null;
+
+	const { toggleConclusao } = contexto;
 
 	const classeCard = `p-3 mb-3 rounded-lg shadow-md hover:cursor-pointer hover:border ${
-		estaConcluido
+		concluido
 			? "bg-gray-800 hover:border-gray-800"
 			: "bg-gray-400 hover:border-gray-400"
 	}`;
 
-	const classeCorDoTexto = estaConcluido ? "text-amber-50" : "";
+	const classeCorDoTexto = concluido ? "text-amber-50" : "";
 
 	const escutarClique = () => {
-		console.log(`A tarefa '${titulo}' foi clicada!`);
-		setEstaConcluido(!estaConcluido);
+		toggleConclusao(id);
 	};
 
 	return (
 		<div className={classeCard} onClick={escutarClique}>
 			<h3 className={`text-xl font-bold ${classeCorDoTexto}`}>{titulo}</h3>
 			<p className={`text-sm ${classeCorDoTexto}`}>
-				{estaConcluido ? "Concluída" : "Pendente"}
+				{concluido ? "Concluída" : "Pendente"}
 			</p>
 		</div>
 	);
 };
 
-interface TarefasProps {
-	dados: TarefaInterface[];
-}
+const Tarefas: React.FC = () => {
+	const contexto = useContext(TarefasContext);
+	if (!contexto) return null;
 
-const Tarefas: React.FC<TarefasProps> = ({ dados }) => {
+	const { tarefas } = contexto;
+
 	return (
 		<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-			{dados.map((tarefa) => (
+			{tarefas.map((tarefa) => (
 				<Tarefa
 					key={tarefa.id}
+					id={tarefa.id}
 					titulo={tarefa.title}
 					concluido={tarefa.completed}
 				/>
@@ -57,27 +62,32 @@ const Tarefas: React.FC<TarefasProps> = ({ dados }) => {
 };
 
 const Home = () => {
-	const [tarefas, setTarefas] = useState<TarefaInterface[]>([]);
+	const contexto = useContext(TarefasContext);
 	const [mostrarModal, setMostrarModal] = useState(false);
 
-  useEffect(() => {
-    axios.get("https://dummyjson.com/todos")
-      .then((res) => {
-        setTarefas(res.data.todos);
-      })
-      .catch((err) => {
-        console.error("Erro ao carregar tarefas:", err);
-      });
-  }, []);
+	useEffect(() => {
+		if (!contexto) return;
 
-	const adicionarTarefa = (titulo: string) => {
-		const novaTarefa: TarefaInterface = {
-			id: Date.now(),
-			title: titulo,
-			completed: false,
-		};
-		setTarefas((prev) => [...prev, novaTarefa]);
-	};
+		axios
+			.get("https://dummyjson.com/todos")
+			.then((res) => {
+				const tarefasDaApi = res.data.todos.map((tarefa: any) => ({
+					id: tarefa.id,
+					title: tarefa.todo,
+					completed: tarefa.completed,
+				}));
+				tarefasDaApi.forEach((t: TarefaInterface) =>
+					contexto.adicionarTarefa({ title: t.title, completed: t.completed })
+				);
+			})
+			.catch((err) => {
+				console.error("Erro ao carregar tarefas:", err);
+			});
+	}, [contexto]);
+
+	if (!contexto) return null;
+
+	const { adicionarTarefa } = contexto;
 
 	return (
 		<div className="container mx-auto p-4">
@@ -88,10 +98,12 @@ const Home = () => {
 			>
 				Nova Tarefa
 			</button>
-			<Tarefas dados={tarefas} />
+			<Tarefas />
 			{mostrarModal && (
 				<ModalTarefa
-					onAdicionar={adicionarTarefa}
+					onAdicionar={(titulo: string) =>
+						adicionarTarefa({ title: titulo, completed: false })
+					}
 					onFechar={() => setMostrarModal(false)}
 				/>
 			)}
