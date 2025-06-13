@@ -1,7 +1,8 @@
 "use client";
 
-import { createContext, useState, type ReactNode } from "react";
-import type { TarefaInterface } from "./index";
+import { createContext, useContext, useState, type ReactNode } from "react";
+import axios from "axios";
+import type { TarefaInterface } from "@/types/tarefa";
 
 interface TarefasContextType {
 	tarefas: TarefaInterface[];
@@ -11,40 +12,29 @@ interface TarefasContextType {
 
 export const TarefasContext = createContext<TarefasContextType | null>(null);
 
-const TarefasProvider = ({ children }: { children: ReactNode }) => {
-	const [tarefas, setTarefas] = useState<TarefaInterface[]>([
-		{
-			id: 1,
-			title: "Tarefa exemplo",
-			completed: false,
-		},
-	]);
+export const TarefasProvider = ({ children }: { children: ReactNode }) => {
+	const [tarefas, setTarefas] = useState<TarefaInterface[]>([]);
 
 	const adicionarTarefa = (novaTarefa: Omit<TarefaInterface, "id">) => {
-		setTarefas((prev) => [
-			...prev,
-			{
-				...novaTarefa,
-				id: prev.length > 0 ? Math.max(...prev.map((t) => t.id)) + 1 : 1,
-			},
-		]);
+		const id = Date.now();
+		setTarefas((prev) => [...prev, { id, ...novaTarefa }]);
 	};
 
 	const toggleConclusao = (id: number) => {
 		setTarefas((prev) =>
-			prev.map((tarefa) =>
-				tarefa.id === id ? { ...tarefa, completed: !tarefa.completed } : tarefa
-			)
+			prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
 		);
 	};
 
 	return (
-		<TarefasContext.Provider
-			value={{ tarefas, adicionarTarefa, toggleConclusao }}
-		>
+		<TarefasContext.Provider value={{ tarefas, adicionarTarefa, toggleConclusao }}>
 			{children}
 		</TarefasContext.Provider>
 	);
 };
 
-export default TarefasProvider;
+export const useTarefas = () => {
+	const contexto = useContext(TarefasContext);
+	if (!contexto) throw new Error("useTarefas deve ser usado dentro do TarefasProvider");
+	return contexto;
+};

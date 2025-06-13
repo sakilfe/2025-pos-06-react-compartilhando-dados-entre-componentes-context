@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTarefas } from "@/data/ContextTarefa";
 
 const Navbar = () => {
 	const pathname = usePathname();
+	const { setMostrarModal } = useTarefas();
 
 	return (
 		<nav className="bg-blue-600 text-white p-4 shadow-md">
